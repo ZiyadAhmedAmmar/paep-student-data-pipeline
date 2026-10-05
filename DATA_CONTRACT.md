@@ -77,14 +77,15 @@ collections; prepare the flattened collection before running the pipeline.
 
 ## Separate Web Scraping Contract
 
-`web_scraping_pipeline.py` reads the configured static HTML table selected by
-`scraping.table_index`. `scraping.column_mapping` renames website column labels;
-`scraping.required_columns` defines the required fields for that selected page.
-The scraper runs shared cleaning and transformation, performs generic non-empty
-and required-column checks, and writes to `scraping.output`. It is deliberately
-not merged with the canonical student sources. Site-specific selectors,
-JavaScript rendering, and domain-specific validation require a contract for the
-chosen website and are not assumed by this generic table scraper.
+`web_scraping_pipeline.py` supports JSON object/array responses and HTML tables.
+JSON objects are flattened with dot-separated nested field names (for example,
+`address.city`); `scraping.column_mapping` can rename source fields, and
+`scraping.required_columns` defines the expected fields. The configured
+JSONPlaceholder `/users` endpoint returns 10 sample user records. The scraper
+runs shared cleaning and transformation, performs generic non-empty and
+required-column checks, and writes to `scraping.output`. It is deliberately not
+merged with the canonical student sources. JavaScript-rendered pages and
+site-specific business validation need additional source-specific behavior.
 
 # Final Dataset Granularity
 

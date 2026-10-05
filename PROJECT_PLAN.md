@@ -157,7 +157,7 @@ The project targets all advanced requirements in the assignment:
 | Pipeline Metrics | `app/utils/metrics.py`; report total, valid, rejected, duplicate, and missing counts, plus measured processing time. | عمران |
 | Reusable Architecture | `app/sources/base_source.py` and a consistent extraction contract used by CSV, REST API, SQLite, MongoDB, and the independent web scraper. | All source owners, coordinated with لؤي for pipeline integration |
 | MongoDB Backend | `app/sources/mongodb_source.py`; an optional MongoDB backend returns the existing database source schema and follows the same validation, integration, lineage, and output stages. | Database source owner and pipeline coordinator |
-| Independent Web Scraping | `app/sources/web_scraping_source.py` + `web_scraping_pipeline.py`; fetches a configured HTML table, applies shared cleaning/transformation, validates configured required columns, and writes a separate CSV without joining the student pipeline. | Scraping source owner |
+| Independent Web Scraping | `app/sources/web_scraping_source.py` + `web_scraping_pipeline.py`; extracts JSON records or an HTML table, applies shared cleaning/transformation, validates configured required columns, and writes a separate CSV without joining the student pipeline. The current example endpoint is JSONPlaceholder `/users`. | Scraping source owner |
 
 The presence of files alone does not complete these requirements. Every feature must work in the integrated pipeline and be verified before delivery.
 

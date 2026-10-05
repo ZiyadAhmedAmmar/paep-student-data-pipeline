@@ -27,11 +27,19 @@
     "path": "logs/pipeline.log"
   },
   "scraping": {
-    "url": "",
+    "url": "https://jsonplaceholder.typicode.com/users",
+    "format": "json",
     "timeout_seconds": 10,
     "table_index": 0,
     "column_mapping": {},
-    "required_columns": [],
+    "required_columns": [
+      "id",
+      "name",
+      "username",
+      "email",
+      "address.city",
+      "company.name"
+    ],
     "output": "data/scraped/web_data.csv",
     "logging_path": "logs/web_scraping_pipeline.log"
   },

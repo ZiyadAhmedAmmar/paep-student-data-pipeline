@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from html.parser import HTMLParser
+import json
 from numbers import Real
 from typing import Any
 
@@ -55,7 +56,7 @@ class _HTMLTableParser(HTMLParser):
 
 
 class WebScrapingSource(BaseSource):
-	"""Fetch one HTML table and optionally rename its columns."""
+	"""Fetch JSON records or one HTML table and optionally rename columns."""
 
 	def __init__(self, config: Mapping[str, Any]) -> None:
 		try:
@@ -63,6 +64,7 @@ class WebScrapingSource(BaseSource):
 			self.timeout_seconds = config.get("timeout_seconds", 10)
 			self.table_index = config.get("table_index", 0)
 			self.column_mapping = config.get("column_mapping", {})
+			self.response_format = config.get("format", "auto")
 		except (KeyError, TypeError) as exc:
 			raise WebScrapingSourceError(
 				"Scraping configuration requires a url."
@@ -93,6 +95,10 @@ class WebScrapingSource(BaseSource):
 			raise WebScrapingSourceError(
 				"scraping.column_mapping must map column names to column names."
 			)
+		if self.response_format not in {"auto", "json", "html"}:
+			raise WebScrapingSourceError(
+				"scraping.format must be 'auto', 'json', or 'html'."
+			)
 
 	def extract(self) -> pd.DataFrame:
 		try:
@@ -103,8 +109,20 @@ class WebScrapingSource(BaseSource):
 				f"Cannot fetch scraping page '{self.url}': {exc}"
 			) from exc
 
+		content_type = getattr(response, "headers", {}).get("Content-Type", "")
+		body = response.text
+		is_json = self.response_format == "json" or (
+			self.response_format == "auto"
+			and (
+				"json" in content_type.lower()
+				or body.lstrip().startswith(("[", "{"))
+			)
+		)
+		if is_json:
+			return self._extract_json(body)
+
 		parser = _HTMLTableParser()
-		parser.feed(response.text)
+		parser.feed(body)
 		tables = parser.tables
 
 		if self.table_index >= len(tables):
@@ -130,4 +148,33 @@ class WebScrapingSource(BaseSource):
 		)
 		if frame.empty:
 			raise WebScrapingSourceError("The selected HTML table is empty.")
+		return frame
+
+	def _extract_json(self, body: str) -> pd.DataFrame:
+		try:
+			payload = json.loads(body)
+		except json.JSONDecodeError as exc:
+			raise WebScrapingSourceError(
+				f"The JSON response from '{self.url}' is invalid."
+			) from exc
+
+		if isinstance(payload, dict):
+			for key in ("data", "users", "results"):
+				if isinstance(payload.get(key), list):
+					payload = payload[key]
+					break
+			else:
+				payload = [payload]
+		if not isinstance(payload, list) or not all(
+			isinstance(record, dict) for record in payload
+		):
+			raise WebScrapingSourceError(
+				"The JSON response must be an object or an array of objects."
+			)
+		if not payload:
+			raise WebScrapingSourceError("The JSON response contains no records.")
+
+		frame = pd.json_normalize(payload, sep=".").rename(
+			columns=dict(self.column_mapping)
+		)
 		return frame

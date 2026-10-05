@@ -64,7 +64,7 @@ student_data_pipeline/
 ├── database/           # schema.sql, seed.sql, students.db
 ├── logs/               # pipeline.log (generated)
 ├── mock_api/           # local REST API serving the canonical seed data
-├── tests/              # 292 tests
+├── tests/              # 294 tests
 ├── main.py             # orchestration only
 ├── web_scraping_pipeline.py # independent HTML-table pipeline
 ├── config.json         # runtime configuration
@@ -73,7 +73,7 @@ student_data_pipeline/
 
 `main.py` composes reusable modules only — extraction, source validation, cleaning, integration, transformation, lineage, final validation, incremental processing, metrics, logging, and output writing. `sources.database.backend` selects SQLite or MongoDB for the same database-source role. All configuration is loaded at runtime from `config.json` through `app/utils/config_loader.py`.
 
-The scraper is an independent pipeline. It extracts one configured HTML table, applies the shared cleaner and transformer, checks configured required columns, and writes a separate CSV. The target URL is intentionally unset until the project chooses a website. It currently supports static HTML tables, not pages whose table is rendered only by JavaScript.
+The scraper is an independent pipeline. It detects JSON responses or extracts one configured HTML table, flattens nested JSON fields with dot-separated names, applies the shared cleaner and transformer, checks configured required columns, and writes a separate CSV. It is configured for the JSONPlaceholder `/users` endpoint, which returns 10 sample users. For websites that render tables only with JavaScript, a site-specific browser-based extractor may still be needed.
 
 ## Data Sources
 
@@ -93,13 +93,13 @@ The three logical student sources share the `student_id` key. MongoDB is an alte
 
 ## Separate Web Scraping Pipeline
 
-The scraper is not part of `main.py` and does not merge with CSV, API, SQLite, or MongoDB data. Configure `scraping.url`, `table_index`, `column_mapping`, `required_columns`, and `output` in `config.json`, then run:
+The scraper is not part of `main.py` and does not merge with CSV, API, SQLite, or MongoDB data. It is configured for `https://jsonplaceholder.typicode.com/users`. JSON objects are flattened into columns such as `address.city` and `company.name`. Configure `scraping.url`, `format`, `column_mapping`, `required_columns`, and `output` in `config.json`, then run:
 
 ```bash
 python web_scraping_pipeline.py
 ```
 
-`column_mapping` maps the website's current column names to the names expected by downstream cleaning/transformation. `required_columns` is a list checked before and after transformation. The default URL is blank, so the scraper will report a configuration error until a target website is selected. Its output defaults to `data/scraped/web_data.csv` and its log to `logs/web_scraping_pipeline.log`.
+`column_mapping` maps the source column names to desired output names. `required_columns` is a list checked before and after transformation. The output defaults to `data/scraped/web_data.csv` and its log to `logs/web_scraping_pipeline.log`.
 
 ## ETL Pipeline
 
@@ -196,7 +196,7 @@ Dependencies: `pandas`, `requests`, `pymongo`, and `pytest` (plus the Python sta
    python -m pytest -q
    ```
 
-   The test suite (292 tests) spins up its own mock API on a free port and uses local HTML and mocked MongoDB clients, so it does not need external services.
+   The test suite (294 tests) spins up its own mock API on a free port and uses local HTML/JSON fixtures and mocked MongoDB clients, so it does not need external services.
 
 ## Output
 
@@ -245,9 +245,9 @@ Sources implement one contract: `BaseSource` (abstract class in `app/sources/bas
 
 ## Testing
 
-The suite has 292 tests covering the assignment's required checks and beyond:
+The suite has 294 tests covering the assignment's required checks and beyond:
 
-- CSV loading, API extraction over real HTTP requests, SQLite extraction, MongoDB source behavior, and local HTML-table scraping (including relevant error paths).
+- CSV loading, API extraction over real HTTP requests, SQLite extraction, MongoDB source behavior, and HTML-table/JSON scraping (including relevant error paths).
 - Duplicate removal, missing-value handling and imputation, invalid-record rejection with reasons, source integration, and `final_dataset.csv` creation.
 - End-to-end tests assert the expected 8 valid / 6 rejected result and confirm the MongoDB backend selection uses the same database stage. Scraper tests use a local HTML fixture and verify separate output. Other tests cover configuration, logging, metrics, incremental processing, lineage, cleaning, transformation, and output writing.
 
