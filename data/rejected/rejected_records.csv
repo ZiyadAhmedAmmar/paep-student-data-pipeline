@@ -1,0 +1,7 @@
+student_id,source,stage,error_reason
+1005.0,CSV,SOURCE_VALIDATION,Invalid Age
+,CSV,SOURCE_VALIDATION,Missing student_id
+1003.0,API,SOURCE_VALIDATION,Invalid Attendance
+1004.0,API,SOURCE_VALIDATION,Invalid GPA
+1099.0,API,SOURCE_VALIDATION,Incompatible student_id
+1010.0,DATABASE,SOURCE_VALIDATION,Invalid Score

@@ -1,0 +1,9 @@
+student_id,student_name,age,major,city,gpa,attendance,status,course_name,credit_hours,semester,score,performance_level,attendance_status,source
+1001,Ahmed Ali,21,Computer Science,Sanaa,3.8,95.0,Active,Data Engineering,3,2026-Fall,93.0,Excellent,Good,CSV|API|DATABASE
+1002,Sara Mohammed,22,Artificial Intelligence,Aden,3.0,88.0,Active,Database Systems,3,2026-Fall,88.0,Very Good,Good,CSV|API|DATABASE
+1006,Noor Ahmed,23,Unknown,Dhamar,2.9,80.0,Active,Database Systems,3,2026-Fall,79.0,Good,Good,CSV|API|DATABASE
+1007,Yousef Ali,24,Cyber Security,Sanaa,3.6,76.0,Active,Machine Learning,4,2026-Fall,95.0,Excellent,Good,CSV|API|DATABASE
+1008,Huda Mohammed,21,Software Engineering,Aden,2.3,72.0,Active,Python Programming,3,2026-Fall,67.0,Acceptable,Low,CSV|API|DATABASE
+1009,Ammar Saleh,27,Information Systems,Taiz,1.8,68.0,Probation,Data Engineering,3,2026-Fall,58.0,At Risk,Low,CSV|API|DATABASE
+1011,Rami Ahmed,26,Computer Science,Dhamar,2.7,85.0,Active,Machine Learning,4,2026-Fall,73.0,Good,Good,CSV|API|DATABASE
+1012,Salma Ali,20,Data Science,Sanaa,3.9,98.0,Active,Python Programming,3,2026-Fall,89.0,Excellent,Good,CSV|API|DATABASE

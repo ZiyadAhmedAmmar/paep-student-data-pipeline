@@ -1,0 +1,42 @@
+{
+  "sources": {
+    "csv": {
+      "path": "data/raw/students.csv"
+    },
+    "api": {
+      "url": "http://localhost:8000/students",
+      "timeout_seconds": 5
+    },
+    "database": {
+      "backend": "sqlite",
+      "path": "database/students.db"
+    },
+    "mongodb": {
+      "uri": "mongodb://localhost:27017",
+      "uri_env": "MONGODB_URI",
+      "database": "student_pipeline",
+      "collection": "enrollments",
+      "server_selection_timeout_ms": 5000
+    }
+  },
+  "output": {
+    "processed": "data/processed/final_dataset.csv",
+    "rejected": "data/rejected/rejected_records.csv"
+  },
+  "logging": {
+    "path": "logs/pipeline.log"
+  },
+  "scraping": {
+    "url": "",
+    "timeout_seconds": 10,
+    "table_index": 0,
+    "column_mapping": {},
+    "required_columns": [],
+    "output": "data/scraped/web_data.csv",
+    "logging_path": "logs/web_scraping_pipeline.log"
+  },
+  "incremental": {
+    "enabled": true,
+    "state_path": "data/state/pipeline_state.json"
+  }
+}
