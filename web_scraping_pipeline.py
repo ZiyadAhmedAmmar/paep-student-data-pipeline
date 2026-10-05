@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from app.output.csv_writer import write_csv
+from app.output.mongodb_writer import write_mongodb_snapshot
 from app.sources.web_scraping_source import WebScrapingSource
 from app.transformation.cleaner import clean_data
 from app.transformation.transformer import transform_data
@@ -41,6 +42,11 @@ def run_pipeline(config_path: str | Path | None = None) -> pd.DataFrame:
 	validated = _validate_scraped_data(transformed, required_columns)
 	write_csv(validated, scraping["output"])
 	logger.info("Web scraping output written to %s.", scraping["output"])
+	if config.get("output", {}).get("mongodb", {}).get("enabled", False):
+		stored_count = write_mongodb_snapshot(
+			validated, config, collection_key="web"
+		)
+		logger.info("MongoDB web snapshot saved: %d records.", stored_count)
 	logger.info(
 		"Web scraping pipeline completed: %d records in %.2f seconds.",
 		len(validated),

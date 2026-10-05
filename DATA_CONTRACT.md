@@ -83,9 +83,27 @@ JSON objects are flattened with dot-separated nested field names (for example,
 `scraping.required_columns` defines the expected fields. The configured
 JSONPlaceholder `/users` endpoint returns 10 sample user records. The scraper
 runs shared cleaning and transformation, performs generic non-empty and
-required-column checks, and writes to `scraping.output`. It is deliberately not
-merged with the canonical student sources. JavaScript-rendered pages and
-site-specific business validation need additional source-specific behavior.
+required-column checks, writes to `scraping.output`, and replaces the snapshot
+in the `student_pipeline.scraped_users` MongoDB collection. It is deliberately
+not joined with the canonical student sources because the user IDs identify
+unrelated entities. JavaScript-rendered pages and site-specific business
+validation need additional source-specific behavior.
+
+## MongoDB Output Collections
+
+When `output.mongodb.enabled` is true, both the student pipeline and the
+standalone scraper persist processed snapshots to the database configured by
+`sources.mongodb.database`. The collections are:
+
+| Collection | Contents |
+| --- | --- |
+| `processed_students` | Final validated student records |
+| `rejected_students` | Source/final rejected records |
+| `scraped_users` | Processed JSONPlaceholder users with nested `address` and `company` objects |
+
+Each runner atomically replaces only its own collection snapshot. All results
+are in one MongoDB database but separate collections because the website users
+have no relationship to the canonical student IDs or schema.
 
 # Final Dataset Granularity
 

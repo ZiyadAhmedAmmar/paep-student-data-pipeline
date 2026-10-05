@@ -35,6 +35,9 @@ coverage.xml
 # Runtime logs
 *.log
 
+# Runtime pipeline state
+data/state/*.json
+
 # Independent scraper output may contain third-party website data
 data/scraped/
 

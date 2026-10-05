@@ -205,6 +205,42 @@ def test_mongodb_backend_uses_database_stage_and_preserves_pipeline_results(
 	assert final["source"].eq("CSV|API|DATABASE").all()
 
 
+def test_student_pipeline_saves_output_and_rejections_to_separate_mongodb_collections(
+	pipeline_env, monkeypatch
+):
+	config_path = pipeline_env.make_config()
+	config = json.loads(config_path.read_text(encoding="utf-8"))
+	config["sources"]["mongodb"] = {
+		"uri": "mongodb://localhost:27017",
+		"database": "student_pipeline",
+		"collection": "enrollments",
+	}
+	config["output"]["mongodb"] = {
+		"enabled": True,
+		"collections": {
+			"students": "processed_students",
+			"rejected": "rejected_students",
+			"web": "scraped_users",
+		},
+	}
+	config_path.write_text(json.dumps(config), encoding="utf-8")
+	saved_snapshots = []
+	monkeypatch.setattr(
+		main_module,
+		"write_mongodb_snapshot",
+		lambda frame, current_config, *, collection_key: saved_snapshots.append(
+			(collection_key, frame.copy())
+		) or len(frame),
+	)
+
+	main(config_path)
+
+	assert [(key, len(frame)) for key, frame in saved_snapshots] == [
+		("students", 8),
+		("rejected", 6),
+	]
+
+
 def test_first_run_rejected_records_match_canonical_contract(pipeline_env):
 	main(pipeline_env.make_config())
 

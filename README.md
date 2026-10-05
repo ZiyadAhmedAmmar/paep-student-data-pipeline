@@ -54,7 +54,7 @@ student_data_pipeline/
 │   ├── sources/        # CSVSource, APISource, DatabaseSource, MongoDBSource, WebScrapingSource
 │   ├── transformation/ # cleaner.py, transformer.py, integration.py
 │   ├── validation/     # quality.py (source and final validation rules)
-│   ├── output/         # csv_writer.py
+│   ├── output/         # CSV output and MongoDB snapshot writer
 │   └── utils/          # config_loader, logger, metrics, incremental, lineage
 ├── data/
 │   ├── raw/            # canonical students.csv
@@ -64,16 +64,18 @@ student_data_pipeline/
 ├── database/           # schema.sql, seed.sql, students.db
 ├── logs/               # pipeline.log (generated)
 ├── mock_api/           # local REST API serving the canonical seed data
-├── tests/              # 294 tests
+├── tests/              # 301 tests
 ├── main.py             # orchestration only
-├── web_scraping_pipeline.py # independent HTML-table pipeline
+├── web_scraping_pipeline.py # independent JSON/HTML scraper pipeline
 ├── config.json         # runtime configuration
 └── requirements.txt    # pandas, requests, pytest
 ```
 
-`main.py` composes reusable modules only — extraction, source validation, cleaning, integration, transformation, lineage, final validation, incremental processing, metrics, logging, and output writing. `sources.database.backend` selects SQLite or MongoDB for the same database-source role. All configuration is loaded at runtime from `config.json` through `app/utils/config_loader.py`.
+`main.py` composes reusable modules only — extraction, source validation, cleaning, integration, transformation, lineage, final validation, incremental processing, metrics, logging, and output writing. `sources.database.backend` selects SQLite or MongoDB for the input database role. Independently, both execution pipelines persist outputs to the configured MongoDB database through `app/output/mongodb_writer.py`.
 
-The scraper is an independent pipeline. It detects JSON responses or extracts one configured HTML table, flattens nested JSON fields with dot-separated names, applies the shared cleaner and transformer, checks configured required columns, and writes a separate CSV. It is configured for the JSONPlaceholder `/users` endpoint, which returns 10 sample users. For websites that render tables only with JavaScript, a site-specific browser-based extractor may still be needed.
+The scraper is an independent pipeline. It detects JSON responses or extracts one configured HTML table, flattens nested JSON fields with dot-separated names, applies the shared cleaner and transformer, checks configured required columns, and writes a separate CSV and MongoDB snapshot. It is configured for the JSONPlaceholder `/users` endpoint, which returns 10 sample users. For websites that render tables only with JavaScript, a site-specific browser-based extractor may still be needed.
+
+Both pipelines store results in the same MongoDB database (`student_pipeline`) using separate collections: `processed_students`, `rejected_students`, and `scraped_users`. This keeps unrelated student and website schemas isolated while making all results available in one database. Each run atomically replaces its collection snapshot, so rerunning does not duplicate records. The student and web datasets are not joined by IDs because they describe different entities.
 
 ## Data Sources
 
@@ -93,13 +95,13 @@ The three logical student sources share the `student_id` key. MongoDB is an alte
 
 ## Separate Web Scraping Pipeline
 
-The scraper is not part of `main.py` and does not merge with CSV, API, SQLite, or MongoDB data. It is configured for `https://jsonplaceholder.typicode.com/users`. JSON objects are flattened into columns such as `address.city` and `company.name`. Configure `scraping.url`, `format`, `column_mapping`, `required_columns`, and `output` in `config.json`, then run:
+The scraper is not part of `main.py` and does not join its records with student records. It is configured for `https://jsonplaceholder.typicode.com/users`. JSON objects are flattened into columns such as `address.city` and `company.name`. Configure `scraping.url`, `format`, `column_mapping`, `required_columns`, and `output` in `config.json`, then run:
 
 ```bash
 python web_scraping_pipeline.py
 ```
 
-`column_mapping` maps the source column names to desired output names. `required_columns` is a list checked before and after transformation. The output defaults to `data/scraped/web_data.csv` and its log to `logs/web_scraping_pipeline.log`.
+`column_mapping` maps the source column names to desired output names. `required_columns` is a list checked before and after transformation. The output defaults to `data/scraped/web_data.csv`; MongoDB persistence writes the same 10 users to `student_pipeline.scraped_users`. Its log is `logs/web_scraping_pipeline.log`.
 
 ## ETL Pipeline
 
@@ -178,25 +180,34 @@ Dependencies: `pandas`, `requests`, `pymongo`, and `pytest` (plus the Python sta
    python mock_api/server.py
    ```
 
-2. **Run the pipeline** in a second terminal:
+2. **Start MongoDB** (required by the default output configuration). If the Windows MongoDB service is installed, start that service. Otherwise, create a local data directory and run:
+
+   ```powershell
+   New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\StudentDataPipeline\MongoDBData"
+   mongod --dbpath "$env:LOCALAPPDATA\StudentDataPipeline\MongoDBData" --bind_ip 127.0.0.1
+   ```
+
+   For a hosted database, set `MONGODB_URI` in the environment instead.
+
+3. **Run the pipeline** in another terminal:
 
    ```bash
    python main.py
    ```
 
-   The pipeline reads `config.json` by default and writes `data/processed/final_dataset.csv`, `data/rejected/rejected_records.csv`, `data/state/pipeline_state.json`, and `logs/pipeline.log`.
+   The pipeline reads `config.json` by default and writes its CSV outputs and state, then replaces the `processed_students` and `rejected_students` snapshots in MongoDB `student_pipeline`.
 
-3. **Use MongoDB instead of SQLite (optional):** provide the database and collection under `sources.mongodb`, set `MONGODB_URI` in the process environment (or use the local default URI), then set `sources.database.backend` to `mongodb`. The documents must use the flattened five-field schema in `DATA_CONTRACT.md`. The final pipeline stages and lineage remain unchanged.
+4. **Use MongoDB instead of SQLite as the enrollment input (optional):** provide the database and collection under `sources.mongodb`, set `MONGODB_URI` in the process environment (or use the local default URI), then set `sources.database.backend` to `mongodb`. The documents must use the flattened five-field schema in `DATA_CONTRACT.md`. The final pipeline stages and lineage remain unchanged.
 
-4. **Run the independent scraper (optional):** set the website URL and table settings under `scraping`, then run `python web_scraping_pipeline.py`. It writes only to the configured scraping output.
+5. **Run the independent scraper:** run `python web_scraping_pipeline.py`. It writes its CSV and replaces the `scraped_users` snapshot in the same MongoDB database.
 
-5. **Run the tests**:
+6. **Run the tests**:
 
    ```bash
    python -m pytest -q
    ```
 
-   The test suite (294 tests) spins up its own mock API on a free port and uses local HTML/JSON fixtures and mocked MongoDB clients, so it does not need external services.
+   The test suite (301 tests) spins up its own mock API on a free port and uses local HTML/JSON fixtures and mocked MongoDB clients, so it does not need external services.
 
 ## Output
 
@@ -204,12 +215,15 @@ Dependencies: `pandas`, `requests`, `pymongo`, and `pytest` (plus the Python sta
 | --- | --- |
 | `data/processed/final_dataset.csv` | 8 valid records, 15 columns: `student_id`, `student_name`, `age`, `major`, `city`, `gpa`, `attendance`, `status`, `course_name`, `credit_hours`, `semester`, `score`, `performance_level`, `attendance_status`, `source` |
 | `data/rejected/rejected_records.csv` | 6 rejected records with their `error_reason` values |
+| MongoDB `student_pipeline.processed_students` | Current valid student snapshot (8 canonical records) |
+| MongoDB `student_pipeline.rejected_students` | Current rejected-record snapshot (6 canonical records) |
+| MongoDB `student_pipeline.scraped_users` | Current web-scraping snapshot (10 JSONPlaceholder users) |
 | `logs/pipeline.log` | INFO log for every stage plus the pipeline metrics summary |
 | `data/state/pipeline_state.json` | incremental processing state from the last run |
 
 ## Configuration
 
-`config.json` defines the source paths, API endpoint, database backend, MongoDB connection settings, separate scraping settings, output/log paths, and incremental settings. The student pipeline loads it at runtime; an alternate config can be passed with `main(config_path=...)`. The standalone scraper reads the same config and uses its `scraping` section.
+`config.json` defines source paths, API endpoint, database backend, MongoDB connection settings, output collection names, separate scraping settings, output/log paths, and incremental settings. MongoDB result persistence is enabled by default and can be toggled with `output.mongodb.enabled`. Both runners read this file.
 
 ## Incremental Processing
 
@@ -245,11 +259,11 @@ Sources implement one contract: `BaseSource` (abstract class in `app/sources/bas
 
 ## Testing
 
-The suite has 294 tests covering the assignment's required checks and beyond:
+The suite has 301 tests covering the assignment's required checks and beyond:
 
 - CSV loading, API extraction over real HTTP requests, SQLite extraction, MongoDB source behavior, and HTML-table/JSON scraping (including relevant error paths).
 - Duplicate removal, missing-value handling and imputation, invalid-record rejection with reasons, source integration, and `final_dataset.csv` creation.
-- End-to-end tests assert the expected 8 valid / 6 rejected result and confirm the MongoDB backend selection uses the same database stage. Scraper tests use a local HTML fixture and verify separate output. Other tests cover configuration, logging, metrics, incremental processing, lineage, cleaning, transformation, and output writing.
+- End-to-end tests assert the expected 8 valid / 6 rejected result, verify MongoDB output collections are separate, and confirm the MongoDB input backend uses the same database stage. Scraper tests verify HTML/JSON extraction and separate MongoDB output. Other tests cover configuration, logging, metrics, incremental processing, lineage, cleaning, transformation, and output writing.
 
 ## Assignment Questions
 

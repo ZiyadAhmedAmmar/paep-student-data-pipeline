@@ -16,6 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 from app.output.csv_writer import write_csv
+from app.output.mongodb_writer import write_mongodb_snapshot
 from app.sources.api_source import extract_api_data
 from app.sources.csv_source import load_data
 from app.sources.database_source import extract_database
@@ -187,6 +188,19 @@ def main(config_path: str | Path | None = None) -> None:
 					)
 				raise
 			logger.info("Incremental state saved.")
+
+		if config.get("output", {}).get("mongodb", {}).get("enabled", False):
+			student_count = write_mongodb_snapshot(
+				final_data, config, collection_key="students"
+			)
+			rejected_count = write_mongodb_snapshot(
+				rejections, config, collection_key="rejected"
+			)
+			logger.info(
+				"MongoDB snapshots saved: %d students, %d rejected records.",
+				student_count,
+				rejected_count,
+			)
 
 		metrics.record_processing_time(time.perf_counter() - started)
 		logger.info(metrics.summary())

@@ -153,7 +153,14 @@ def test_separate_pipeline_writes_json_api_rows_to_standalone_output(
 			"api": {"url": "http://localhost/students", "timeout_seconds": 1},
 			"database": {"path": "students.db"},
 		},
-		"output": {"processed": "old-output.csv", "rejected": "rejected.csv"},
+		"output": {
+			"processed": "old-output.csv",
+			"rejected": "rejected.csv",
+			"mongodb": {
+				"enabled": True,
+				"collections": {"web": "scraped_users"},
+			},
+		},
 		"logging": {"path": "old-pipeline.log"},
 		"incremental": {"enabled": False, "state_path": "state.json"},
 		"scraping": {
@@ -166,8 +173,18 @@ def test_separate_pipeline_writes_json_api_rows_to_standalone_output(
 	}
 	config_path = tmp_path / "config.json"
 	config_path.write_text(json.dumps(config), encoding="utf-8")
+	saved_snapshots = []
+	monkeypatch.setattr(
+		"web_scraping_pipeline.write_mongodb_snapshot",
+		lambda frame, current_config, *, collection_key: saved_snapshots.append(
+			(collection_key, frame.copy())
+		) or len(frame),
+	)
 
 	result = run_pipeline(config_path)
 
 	assert result.loc[0, "address.city"] == "Gwenborough"
 	assert (tmp_path / "scraped" / "users.csv").exists()
+	assert len(saved_snapshots) == 1
+	assert saved_snapshots[0][0] == "web"
+	assert saved_snapshots[0][1].loc[0, "id"] == 1

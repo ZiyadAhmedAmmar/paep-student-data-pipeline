@@ -21,7 +21,15 @@
   },
   "output": {
     "processed": "data/processed/final_dataset.csv",
-    "rejected": "data/rejected/rejected_records.csv"
+    "rejected": "data/rejected/rejected_records.csv",
+    "mongodb": {
+      "enabled": true,
+      "collections": {
+        "students": "processed_students",
+        "rejected": "rejected_students",
+        "web": "scraped_users"
+      }
+    }
   },
   "logging": {
     "path": "logs/pipeline.log"
