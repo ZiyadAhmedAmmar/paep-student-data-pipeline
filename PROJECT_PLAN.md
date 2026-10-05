@@ -9,7 +9,7 @@ The pipeline will collect student data from:
 - CSV
 - REST API
 - SQLite (default database backend) or MongoDB (alternative backend with the same enrollment-record contract)
-- A separately run HTML-table scraper whose records are not merged into the student dataset
+- A separately run JSON/HTML scraper whose records are not merged into the student dataset
 
 The official pipeline order is:
 
@@ -19,6 +19,7 @@ The completed pipeline will produce:
 
 - Valid records → `data/processed/final_dataset.csv`
 - Invalid records → `data/rejected/rejected_records.csv`
+- MongoDB snapshots → `processed_students`, `rejected_students`, and `scraped_users` in the configured database
 - Pipeline logs: `logs/pipeline.log`
 
 # Team Members and Responsibilities

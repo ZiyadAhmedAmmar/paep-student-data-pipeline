@@ -1,6 +1,8 @@
 # Multi-Source Student Data Pipeline
 
-A group project for the PAEP Data Engineering course: a Python ETL pipeline that collects student data from CSV, a REST API, and a database source (SQLite by default, or MongoDB), validates and cleans it, integrates it into one analysis-ready dataset, and produces valid and rejected outputs with logging, metrics, and lineage. A separate HTML-table scraper pipeline writes its own output and never joins the student pipeline.
+[English](README.md) | [العربية](README_AR.md)
+
+A group project for the PAEP Data Engineering course: a Python ETL pipeline that collects student data from CSV, a REST API, and a database source (SQLite by default, or MongoDB), validates and cleans it, integrates it into one analysis-ready dataset, and produces valid and rejected outputs with logging, metrics, and lineage. A separate JSON/HTML scraper pipeline writes its own output and never joins the student pipeline.
 
 The pipeline follows this flow:
 
@@ -38,7 +40,7 @@ The same student exists in three different systems: identity data in a CSV file,
 - Runs a final validation and splits the result into valid and rejected records.
 - Writes the outputs and records stage-by-stage logs and pipeline metrics.
 - Can use MongoDB documents as an alternative backend for the SQLite enrollment source.
-- Runs an independent HTML-table scraper through `web_scraping_pipeline.py`; scraped records are never integrated with student records.
+- Runs an independent JSON/HTML scraper through `web_scraping_pipeline.py`; scraped records are never integrated with student records.
 
 On the canonical dataset the pipeline produces **8 valid records** and **6 rejected records**, and asserts this end-to-end in the test suite. The intended final order is documented in [PROJECT_PLAN.md](PROJECT_PLAN.md); field schemas, quality rules, and expected values are defined in [DATA_CONTRACT.md](DATA_CONTRACT.md).
 
@@ -68,7 +70,7 @@ student_data_pipeline/
 ├── main.py             # orchestration only
 ├── web_scraping_pipeline.py # independent JSON/HTML scraper pipeline
 ├── config.json         # runtime configuration
-└── requirements.txt    # pandas, requests, pytest
+└── requirements.txt    # pandas, requests, pymongo, pytest
 ```
 
 `main.py` composes reusable modules only — extraction, source validation, cleaning, integration, transformation, lineage, final validation, incremental processing, metrics, logging, and output writing. `sources.database.backend` selects SQLite or MongoDB for the input database role. Independently, both execution pipelines persist outputs to the configured MongoDB database through `app/output/mongodb_writer.py`.
@@ -113,7 +115,7 @@ python web_scraping_pipeline.py
 4. **Integrate** — the three cleaned sources are merged on `student_id`; a student must be present in all three contributing sources, giving one row per student.
 5. **Transform** — missing GPA/attendance imputed with medians computed from the complete raw API source (3.0 and 85), types normalized, and derived columns `performance_level` and `attendance_status` added from the rule tables in `DATA_CONTRACT.md`.
 6. **Final Validation** — the same quality rules applied to the transformed dataset; anything still invalid is split off.
-7. **Load** — valid records to `data/processed/final_dataset.csv`, rejected records with their reasons to `data/rejected/rejected_records.csv`.
+7. **Load** — valid and rejected CSV outputs, plus separate snapshots in MongoDB `processed_students` and `rejected_students` collections.
 
 ## Data Quality
 
